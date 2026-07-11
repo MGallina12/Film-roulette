@@ -4,22 +4,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#17151f" />
+
   <title>Ciné Roulette</title>
-  <link rel="stylesheet" href="style.css" />
+
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- Bibliothèque Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Tes informations de connexion Supabase -->
+  <script src="./config.js"></script>
 </head>
+
 <body>
   <main class="app">
     <header>
       <div class="brand">
         <div class="brand-icon">🎬</div>
+
         <div>
           <h1>Ciné Roulette</h1>
-          <p class="subtitle">Votre prochaine soirée film, décidée par le hasard.</p>
+          <p class="subtitle">
+            Votre prochaine soirée film, décidée par le hasard.
+          </p>
         </div>
       </div>
+
       <div class="stats">
-        <div class="stat"><strong id="todoCount">0</strong> à regarder</div>
-        <div class="stat"><strong id="watchedCount">0</strong> déjà vus</div>
+        <div class="stat">
+          <strong id="todoCount">0</strong> à regarder
+        </div>
+
+        <div class="stat">
+          <strong id="watchedCount">0</strong> déjà vus
+        </div>
       </div>
     </header>
 
@@ -35,53 +53,101 @@
         <div class="wheel-wrap">
           <div class="wheel-glow"></div>
           <div class="pointer"></div>
-          <canvas id="wheel" width="900" height="900" aria-label="Roue des films"></canvas>
+
+          <canvas
+            id="wheel"
+            width="900"
+            height="900"
+            aria-label="Roue des films"
+          ></canvas>
         </div>
 
-        <button class="spin-button" id="spinBtn">Tourner la roue ✨</button>
-        <p class="small-note">La roue contient uniquement les films qui ne sont pas encore regardés.</p>
+        <button class="spin-button" id="spinBtn">
+          Tourner la roue ✨
+        </button>
+
+        <p class="small-note">
+          La roue contient uniquement les films qui ne sont pas encore regardés.
+        </p>
       </article>
 
       <aside class="side">
         <section class="panel add-panel">
           <div class="eyebrow">Nouveau film</div>
           <h2>Ajouter à votre liste</h2>
+
           <form class="add-form" id="addForm">
-            <input id="movieInput" maxlength="80" autocomplete="off" placeholder="Ex. Interstellar" aria-label="Nom du film" />
-            <button class="add-button" type="submit">Ajouter</button>
+            <input
+              id="movieInput"
+              maxlength="80"
+              autocomplete="off"
+              placeholder="Ex. Interstellar"
+              aria-label="Nom du film"
+            />
+
+            <button class="add-button" type="submit">
+              Ajouter
+            </button>
           </form>
         </section>
 
         <section class="panel lists-panel">
           <div class="eyebrow">Votre sélection</div>
           <h2>Liste des films</h2>
+
           <div class="tabs">
-            <button class="tab active" data-tab="todo">À regarder</button>
-            <button class="tab" data-tab="watched">Déjà regardés</button>
+            <button class="tab active" data-tab="todo">
+              À regarder
+            </button>
+
+            <button class="tab" data-tab="watched">
+              Déjà regardés
+            </button>
           </div>
-          <input class="search" id="searchInput" placeholder="Rechercher un film…" />
+
+          <input
+            class="search"
+            id="searchInput"
+            placeholder="Rechercher un film…"
+          />
+
           <div class="movie-list" id="movieList"></div>
         </section>
       </aside>
     </section>
   </main>
 
-  <div class="modal" id="resultModal" role="dialog" aria-modal="true">
+  <div
+    class="modal"
+    id="resultModal"
+    role="dialog"
+    aria-modal="true"
+  >
     <div class="modal-card">
       <div class="result-icon">🍿</div>
       <div class="eyebrow">La roue a choisi</div>
-      <h3 class="result-title">Votre film du soir</h3>
+
+      <h3 class="result-title">
+        Votre film du soir
+      </h3>
+
       <div class="result-movie" id="resultMovie"></div>
+
       <div class="modal-actions">
-        <button class="secondary" id="closeModal">Relancer plus tard</button>
-        <button class="primary" id="markWatched">On le regarde !</button>
+        <button class="secondary" id="closeModal">
+          Relancer plus tard
+        </button>
+
+        <button class="primary" id="markWatched">
+          On le regarde !
+        </button>
       </div>
     </div>
   </div>
 
   <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./config.js"></script>
+  <!-- Ton JavaScript doit être chargé en dernier -->
+  <script src="./script.js"></script>
 </body>
 </html>
