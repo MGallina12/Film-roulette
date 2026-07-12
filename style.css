@@ -1049,6 +1049,10 @@ h2 {
   font-weight: 600;
 }
 
+.movie-copy {
+  min-width: 0;
+}
+
 .movie-meta {
   margin-top: 2px;
 
