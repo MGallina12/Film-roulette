@@ -2,152 +2,489 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#17151f" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <meta
+    name="theme-color"
+    content="#120d10"
+  />
+
+  <meta
+    name="description"
+    content="Une roulette partagée pour choisir facilement le prochain film ou la prochaine série à regarder."
+  />
 
   <title>Ciné Roulette</title>
 
-  <link rel="stylesheet" href="./style.css" />
+  <!-- Feuille de style principale -->
+  <link
+    rel="stylesheet"
+    href="./style.css"
+  />
 
   <!-- Bibliothèque Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Tes informations de connexion Supabase -->
+  <!-- Configuration Supabase -->
   <script src="./config.js"></script>
 </head>
 
 <body>
-  <main class="app">
-    <header>
-      <div class="brand">
-        <div class="brand-icon">🎬</div>
+  <div class="site-shell">
 
-        <div>
-          <h1>Ciné Roulette</h1>
-          <p class="subtitle">
-            Votre prochaine soirée film, décidée par le hasard.
-          </p>
+    <!-- ==================================================
+         EN-TÊTE
+    =================================================== -->
+
+    <header class="site-header">
+      <a
+        class="brand"
+        href="#"
+        aria-label="Retour à l'accueil"
+      >
+        <span
+          class="brand-symbol"
+          aria-hidden="true"
+        >
+          CR
+        </span>
+
+        <span class="brand-text">
+          <strong>Ciné Roulette</strong>
+          <small>Notre sélection du soir</small>
+        </span>
+      </a>
+
+      <!-- Navigation entre les deux listes -->
+      <nav
+        class="space-navigation"
+        aria-label="Choisir une liste"
+      >
+        <button
+          class="space-button active"
+          type="button"
+          data-room-id="matheo-et-sa-copine"
+          data-space-name="Nous deux"
+          aria-pressed="true"
+        >
+          <span aria-hidden="true">♥</span>
+          Nous deux
+        </button>
+
+        <button
+          class="space-button"
+          type="button"
+          data-room-id="liste-elle"
+          data-space-name="Sa liste"
+          aria-pressed="false"
+        >
+          <span aria-hidden="true">★</span>
+          Sa liste
+        </button>
+      </nav>
+
+      <!-- Compteurs -->
+      <div
+        class="header-stats"
+        aria-label="Statistiques de la liste"
+      >
+        <div class="header-stat">
+          <strong id="todoCount">0</strong>
+          <span>à regarder</span>
         </div>
-      </div>
 
-      <div class="stats">
-        <div class="stat">
-          <strong id="todoCount">0</strong> à regarder
-        </div>
-
-        <div class="stat">
-          <strong id="watchedCount">0</strong> déjà vus
+        <div class="header-stat">
+          <strong id="watchedCount">0</strong>
+          <span>déjà vus</span>
         </div>
       </div>
     </header>
 
-    <section class="layout">
-      <article class="panel wheel-panel">
-        <div class="panel-title-row">
+
+    <!-- ==================================================
+         CONTENU PRINCIPAL
+    =================================================== -->
+
+    <main class="main-layout">
+
+      <!-- ==================================================
+           COLONNE GAUCHE : ROULETTE
+      =================================================== -->
+
+      <section
+        class="panel wheel-panel"
+        aria-labelledby="wheelTitle"
+      >
+        <div class="panel-heading">
           <div>
-            <div class="eyebrow">Choix du soir</div>
-            <h2>Tournez la roue</h2>
+            <p class="eyebrow">
+              Choix du soir
+            </p>
+
+            <h1 id="wheelTitle">
+              Tournez la roue
+            </h1>
+
+            <p
+              class="panel-description"
+              id="currentSpaceDescription"
+            >
+              Choisissez un film dans notre liste commune.
+            </p>
           </div>
+
+          <span
+            class="current-space-badge"
+            id="currentSpaceBadge"
+          >
+            Nous deux
+          </span>
         </div>
 
-        <div class="wheel-wrap">
-          <div class="wheel-glow"></div>
-          <div class="pointer"></div>
+        <div class="wheel-area">
+          <div
+            class="wheel-light"
+            aria-hidden="true"
+          ></div>
+
+          <div
+            class="wheel-pointer"
+            aria-hidden="true"
+          ></div>
 
           <canvas
             id="wheel"
             width="900"
             height="900"
-            aria-label="Roue des films"
-          ></canvas>
+            aria-label="Roulette contenant les films et séries à regarder"
+          >
+            Votre navigateur ne permet pas d’afficher la roulette.
+          </canvas>
         </div>
 
-        <button class="spin-button" id="spinBtn">
-          Tourner la roue ✨
-        </button>
+        <div class="wheel-actions">
+          <button
+            class="primary-button spin-button"
+            id="spinBtn"
+            type="button"
+          >
+            <span>Tourner la roue</span>
+            <span aria-hidden="true">→</span>
+          </button>
 
-        <p class="small-note">
-          La roue contient uniquement les films qui ne sont pas encore regardés.
-        </p>
-      </article>
+          <p class="wheel-note">
+            Seuls les contenus qui ne sont pas encore regardés
+            apparaissent sur la roue.
+          </p>
+        </div>
+      </section>
 
-      <aside class="side">
-        <section class="panel add-panel">
-          <div class="eyebrow">Nouveau film</div>
-          <h2>Ajouter à votre liste</h2>
 
-          <form class="add-form" id="addForm">
-            <input
-              id="movieInput"
-              maxlength="80"
-              autocomplete="off"
-              placeholder="Ex. Interstellar"
-              aria-label="Nom du film"
-            />
+      <!-- ==================================================
+           COLONNE DROITE
+      =================================================== -->
 
-            <button class="add-button" type="submit">
+      <aside class="side-column">
+
+        <!-- ==================================================
+             AJOUTER UN CONTENU
+        =================================================== -->
+
+        <section
+          class="panel add-panel"
+          aria-labelledby="addTitle"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">
+                Nouveau contenu
+              </p>
+
+              <h2 id="addTitle">
+                Ajouter à la liste
+              </h2>
+            </div>
+          </div>
+
+          <form
+            class="add-form"
+            id="addForm"
+          >
+            <div class="form-field title-field">
+              <label
+                class="sr-only"
+                for="movieInput"
+              >
+                Nom du film ou de la série
+              </label>
+
+              <input
+                id="movieInput"
+                name="title"
+                type="text"
+                maxlength="80"
+                autocomplete="off"
+                placeholder="Ex. Interstellar"
+                required
+              />
+            </div>
+
+            <div class="form-field type-field">
+              <label
+                class="sr-only"
+                for="mediaTypeInput"
+              >
+                Type de contenu
+              </label>
+
+              <select
+                id="mediaTypeInput"
+                name="mediaType"
+              >
+                <option value="film">
+                  Film
+                </option>
+
+                <option value="serie">
+                  Série
+                </option>
+              </select>
+            </div>
+
+            <button
+              class="add-button"
+              type="submit"
+            >
               Ajouter
             </button>
           </form>
         </section>
 
-        <section class="panel lists-panel">
-          <div class="eyebrow">Votre sélection</div>
-          <h2>Liste des films</h2>
 
-          <div class="tabs">
-            <button class="tab active" data-tab="todo">
+        <!-- ==================================================
+             LISTE DES CONTENUS
+        =================================================== -->
+
+        <section
+          class="panel library-panel"
+          aria-labelledby="libraryTitle"
+        >
+          <div class="library-header">
+            <div>
+              <p class="eyebrow">
+                Votre sélection
+              </p>
+
+              <h2 id="libraryTitle">
+                Liste des films et séries
+              </h2>
+            </div>
+          </div>
+
+          <!-- Filtres regardés / non regardés -->
+          <div
+            class="status-tabs"
+            role="tablist"
+            aria-label="État des contenus"
+          >
+            <button
+              class="status-tab active"
+              type="button"
+              data-tab="todo"
+              role="tab"
+              aria-selected="true"
+            >
               À regarder
             </button>
 
-            <button class="tab" data-tab="watched">
+            <button
+              class="status-tab"
+              type="button"
+              data-tab="watched"
+              role="tab"
+              aria-selected="false"
+            >
               Déjà regardés
             </button>
           </div>
 
-          <input
-            class="search"
-            id="searchInput"
-            placeholder="Rechercher un film…"
-          />
+          <!-- Recherche et filtre par type -->
+          <div class="library-tools">
+            <div class="search-field">
+              <label
+                class="sr-only"
+                for="searchInput"
+              >
+                Rechercher dans la liste
+              </label>
 
-          <div class="movie-list" id="movieList"></div>
+              <span
+                class="search-icon"
+                aria-hidden="true"
+              >
+                ⌕
+              </span>
+
+              <input
+                id="searchInput"
+                class="search-input"
+                type="search"
+                autocomplete="off"
+                placeholder="Rechercher…"
+              />
+            </div>
+
+            <div
+              class="type-filters"
+              aria-label="Filtrer selon le type"
+            >
+              <button
+                class="type-filter active"
+                type="button"
+                data-type="all"
+                aria-pressed="true"
+              >
+                Tout
+              </button>
+
+              <button
+                class="type-filter"
+                type="button"
+                data-type="film"
+                aria-pressed="false"
+              >
+                Films
+              </button>
+
+              <button
+                class="type-filter"
+                type="button"
+                data-type="serie"
+                aria-pressed="false"
+              >
+                Séries
+              </button>
+            </div>
+          </div>
+
+          <!--
+            Cette zone sera la seule partie défilable
+            sur ordinateur grâce au futur CSS.
+          -->
+          <div
+            class="movie-list"
+            id="movieList"
+            aria-live="polite"
+          >
+            <div class="empty-state">
+              <span
+                class="empty-state-icon"
+                aria-hidden="true"
+              >
+                ◌
+              </span>
+
+              <p>
+                Chargement de la liste…
+              </p>
+            </div>
+          </div>
         </section>
       </aside>
-    </section>
-  </main>
+    </main>
+  </div>
+
+
+  <!-- ==================================================
+       FENÊTRE DU RÉSULTAT DE LA ROULETTE
+  =================================================== -->
 
   <div
     class="modal"
     id="resultModal"
     role="dialog"
     aria-modal="true"
+    aria-labelledby="resultTitle"
+    aria-hidden="true"
   >
     <div class="modal-card">
-      <div class="result-icon">🍿</div>
-      <div class="eyebrow">La roue a choisi</div>
+      <button
+        class="modal-close"
+        id="modalCloseButton"
+        type="button"
+        aria-label="Fermer la fenêtre"
+      >
+        ×
+      </button>
 
-      <h3 class="result-title">
-        Votre film du soir
-      </h3>
+      <div
+        class="result-symbol"
+        aria-hidden="true"
+      >
+        ✦
+      </div>
 
-      <div class="result-movie" id="resultMovie"></div>
+      <p class="eyebrow">
+        La roue a choisi
+      </p>
+
+      <h2
+        class="result-title"
+        id="resultTitle"
+      >
+        Votre programme du soir
+      </h2>
+
+      <div
+        class="result-type"
+        id="resultType"
+      >
+        Film
+      </div>
+
+      <p
+        class="result-movie"
+        id="resultMovie"
+      ></p>
 
       <div class="modal-actions">
-        <button class="secondary" id="closeModal">
-          Relancer plus tard
+        <button
+          class="secondary-button"
+          id="closeModal"
+          type="button"
+        >
+          Choisir plus tard
         </button>
 
-        <button class="primary" id="markWatched">
-          On le regarde !
+        <button
+          class="primary-button"
+          id="markWatched"
+          type="button"
+        >
+          On le regarde
         </button>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
 
-  <!-- Ton JavaScript doit être chargé en dernier -->
+  <!-- ==================================================
+       MESSAGE TEMPORAIRE
+  =================================================== -->
+
+  <div
+    class="toast"
+    id="toast"
+    role="status"
+    aria-live="polite"
+  ></div>
+
+
+  <!-- JavaScript principal -->
   <script src="./script.js"></script>
 </body>
 </html>
