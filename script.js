@@ -1,48 +1,8 @@
-const defaultMovies = [
-  { title: "Green book", watched: true },
-  { title: "Exit 8", watched: false },
-  { title: "The gentleman (2019)", watched: false },
-  { title: "Zootopia 2 (Disney)", watched: true },
-  { title: "Il était une fois (Disney)", watched: true },
-  { title: "Anastasia (Disney)", watched: false },
-  { title: "One piece live action (Netflix)", watched: false },
-  { title: "Le dragon des mers", watched: true },
-  { title: "Running Man", watched: false },
-  { title: "Time out", watched: false },
-  { title: "Kong", watched: false },
-  { title: "Godzilla", watched: false },
-  { title: "Bad boys", watched: false },
-  { title: "Real steel", watched: true },
-  { title: "The Ron Clark Story", watched: true },
-  { title: "Kong Fu panda 2", watched: true },
-  { title: "Kong Fu panda 3", watched: false },
-  { title: "Jumper (Disney)", watched: true },
-  { title: "Road house", watched: false },
-  { title: "Marty Supreme", watched: false },
-  { title: "L'immortel", watched: false },
-  { title: "Freedom writers", watched: false },
-  { title: "Seven", watched: false },
-  { title: "Le grand bleu", watched: false },
-  { title: "Léon", watched: false },
-  { title: "Pretty woman", watched: true },
-  { title: "Robin des Bois", watched: true },
-  { title: "The Bodyguard", watched: false },
-  { title: "Dirty dancing", watched: false },
-  { title: "Jurassic park", watched: false },
-  { title: "Retour vers le futur", watched: false },
-  { title: "James bond", watched: false },
-  { title: "Et si c'était vrai", watched: false },
-  { title: "La nuit au musée", watched: false },
-  { title: "Rrrrrhhh", watched: false },
-  { title: "Hitman : agent 47", watched: false },
-  { title: "Idiocracy", watched: false }
-];
+"use strict";
 
-let movies = [];
-let activeTab = "todo";
-let selectedMovieId = null;
-let rotation = 0;
-let spinning = false;
+/* =========================================================
+   CONFIGURATION SUPABASE
+========================================================= */
 
 const config = window.CINE_CONFIG;
 
@@ -50,10 +10,9 @@ if (
   !config ||
   !config.supabaseUrl ||
   !config.supabaseAnonKey ||
-  config.supabaseUrl.includes("COLLE_ICI") ||
-  config.supabaseAnonKey.includes("COLLE_ICI")
+  !window.supabase
 ) {
-  alert("Le fichier config.js n'est pas correctement configuré.");
+  alert("La configuration Supabase est manquante ou incorrecte.");
   throw new Error("Configuration Supabase manquante.");
 }
 
@@ -62,366 +21,178 @@ const supabaseClient = window.supabase.createClient(
   config.supabaseAnonKey
 );
 
-const roomId = config.roomId || "matheo-et-sa-copine";
+
+/* =========================================================
+   ÉLÉMENTS DE LA PAGE
+========================================================= */
+
+const spaceButtons = [
+  ...document.querySelectorAll(".space-button")
+];
+
+const statusTabs = [
+  ...document.querySelectorAll(".status-tab")
+];
+
+const typeFilters = [
+  ...document.querySelectorAll(".type-filter")
+];
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
+
 const spinBtn = document.getElementById("spinBtn");
+
+const addForm = document.getElementById("addForm");
+const movieInput = document.getElementById("movieInput");
+const mediaTypeInput = document.getElementById("mediaTypeInput");
+
 const movieList = document.getElementById("movieList");
+const searchInput = document.getElementById("searchInput");
+
 const todoCount = document.getElementById("todoCount");
 const watchedCount = document.getElementById("watchedCount");
-const searchInput = document.getElementById("searchInput");
+
+const currentSpaceBadge = document.getElementById(
+  "currentSpaceBadge"
+);
+
+const currentSpaceDescription = document.getElementById(
+  "currentSpaceDescription"
+);
+
 const modal = document.getElementById("resultModal");
 const resultMovie = document.getElementById("resultMovie");
+const resultType = document.getElementById("resultType");
+
+const closeModalButton = document.getElementById("closeModal");
+const modalCloseButton = document.getElementById(
+  "modalCloseButton"
+);
+
+const markWatchedButton = document.getElementById(
+  "markWatched"
+);
+
 const toast = document.getElementById("toast");
 
-const palette = [
-  "#ff5b7f",
-  "#8d6bff",
-  "#38bdf8",
-  "#f59e0b",
-  "#34d399",
-  "#fb7185",
-  "#a78bfa",
-  "#22d3ee"
+
+/* =========================================================
+   CONFIGURATION DES DEUX ESPACES
+========================================================= */
+
+/*
+  Le roomId du fichier config.js reste utilisé
+  pour l’espace commun.
+*/
+
+const commonRoomId =
+  config.roomId || "matheo-et-sa-copine";
+
+const commonSpaceButton = spaceButtons.find(
+  button => button.dataset.spaceName === "Nous deux"
+);
+
+if (commonSpaceButton) {
+  commonSpaceButton.dataset.roomId = commonRoomId;
+}
+
+const spaces = {
+  common: {
+    roomId: commonRoomId,
+    name: "Nous deux",
+    description:
+      "Choisissez un film ou une série dans votre liste commune.",
+    placeholder: "Ex. Interstellar",
+    blueTheme: false
+  },
+
+  personal: {
+    roomId: "liste-elle",
+    name: "Sa liste",
+    description:
+      "Choisissez un film ou une série dans sa liste personnelle.",
+    placeholder: "Ex. Stranger Things",
+    blueTheme: true
+  }
+};
+
+
+/* =========================================================
+   PALETTES DES ROULETTES
+========================================================= */
+
+const commonPalette = [
+  "#8f2942",
+  "#c54b62",
+  "#d59d55",
+  "#6d3049",
+  "#ad3b54",
+  "#e1b873",
+  "#7c233a",
+  "#ca6a77"
 ];
 
-async function loadMovies() {
-  const { data, error } = await supabaseClient
-    .from("movies")
-    .select("*")
-    .eq("room_id", roomId)
-    .order("created_at", { ascending: true });
+const bluePalette = [
+  "#2056b3",
+  "#2e7de1",
+  "#26a5d1",
+  "#314d9b",
+  "#4bbff0",
+  "#2868c7",
+  "#237fa9",
+  "#526fe0"
+];
 
-  if (error) {
-    console.error("Erreur de chargement :", error);
-    showToast("Impossible de charger les films");
-    return;
-  }
 
-  movies = data || [];
+/* =========================================================
+   ÉTAT DE L’APPLICATION
+========================================================= */
 
-  if (movies.length === 0) {
-    await addDefaultMovies();
-    return;
-  }
+let movies = [];
 
-  updateUI();
+let activeRoomId = commonRoomId;
+let activeSpaceName = "Nous deux";
+
+let activeTab = "todo";
+let activeType = "all";
+
+let selectedMovieId = null;
+let selectedMovieRoomId = null;
+
+let rotation = 0;
+let spinning = false;
+let loading = true;
+let loadError = null;
+
+let realtimeChannel = null;
+let realtimeReloadTimer = null;
+
+
+/* =========================================================
+   OUTILS GÉNÉRAUX
+========================================================= */
+
+function normalizeMediaType(value) {
+  return value === "serie" ? "serie" : "film";
 }
 
-async function addDefaultMovies() {
-  const rows = defaultMovies.map(movie => ({
-    room_id: roomId,
-    title: movie.title,
-    watched: movie.watched
-  }));
-
-  const { error } = await supabaseClient
-    .from("movies")
-    .insert(rows);
-
-  if (error) {
-    console.error("Erreur d'initialisation :", error);
-    showToast("Impossible d'ajouter la liste de départ");
-    return;
-  }
-
-  await loadMovies();
+function getMediaTypeLabel(value) {
+  return normalizeMediaType(value) === "serie"
+    ? "Série"
+    : "Film";
 }
 
-async function addMovie(title) {
-  const { error } = await supabaseClient
-    .from("movies")
-    .insert({
-      room_id: roomId,
-      title,
-      watched: false
-    });
-
-  if (error) {
-    console.error("Erreur d'ajout :", error);
-    showToast("Impossible d'ajouter le film");
-    return;
-  }
-
-  showToast("Film ajouté à la roue");
-}
-
-async function toggleWatched(id) {
-  const movie = movies.find(item => item.id === id);
-
-  if (!movie) return;
-
-  const { error } = await supabaseClient
-    .from("movies")
-    .update({
-      watched: !movie.watched
-    })
-    .eq("id", id)
-    .eq("room_id", roomId);
-
-  if (error) {
-    console.error("Erreur de modification :", error);
-    showToast("Impossible de modifier le film");
-    return;
-  }
-
-  showToast("Liste mise à jour");
-}
-
-async function removeMovie(id) {
-  const movie = movies.find(item => item.id === id);
-
-  if (!movie) return;
-
-  const confirmation = confirm(`Supprimer « ${movie.title} » ?`);
-
-  if (!confirmation) return;
-
-  const { error } = await supabaseClient
-    .from("movies")
-    .delete()
-    .eq("id", id)
-    .eq("room_id", roomId);
-
-  if (error) {
-    console.error("Erreur de suppression :", error);
-    showToast("Impossible de supprimer le film");
-    return;
-  }
-
-  showToast("Film supprimé");
-}
-
-window.toggleWatched = toggleWatched;
-window.removeMovie = removeMovie;
-
-function updateUI() {
-  todoCount.textContent = movies.filter(movie => !movie.watched).length;
-  watchedCount.textContent = movies.filter(movie => movie.watched).length;
-
-  spinBtn.disabled =
-    movies.filter(movie => !movie.watched).length === 0 || spinning;
-
-  renderList();
-  drawWheel();
-}
-
-function renderList() {
-  const query = searchInput.value.trim().toLowerCase();
-
-  const filtered = movies
-    .filter(movie =>
-      activeTab === "todo" ? !movie.watched : movie.watched
-    )
-    .filter(movie =>
-      movie.title.toLowerCase().includes(query)
-    );
-
-  if (!filtered.length) {
-    movieList.innerHTML = `
-      <div class="empty">
-        ${
-          query
-            ? "Aucun film trouvé."
-            : activeTab === "todo"
-              ? "La liste est vide. Ajoutez un film !"
-              : "Aucun film regardé pour le moment."
-        }
-      </div>
-    `;
-
-    return;
-  }
-
-  movieList.innerHTML = filtered
-    .map(
-      (movie, index) => `
-        <div class="movie">
-          <div class="movie-number">${index + 1}</div>
-
-          <div
-            class="movie-title"
-            title="${escapeHtml(movie.title)}"
-          >
-            ${escapeHtml(movie.title)}
-          </div>
-
-          <div class="movie-actions">
-            <button
-              class="icon-btn"
-              title="${
-                movie.watched
-                  ? "Remettre à regarder"
-                  : "Marquer comme regardé"
-              }"
-              onclick="toggleWatched(${movie.id})"
-            >
-              ${movie.watched ? "↩" : "✓"}
-            </button>
-
-            <button
-              class="icon-btn"
-              title="Supprimer"
-              onclick="removeMovie(${movie.id})"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      `
-    )
-    .join("");
-}
-
-function drawWheel() {
-  const items = movies.filter(movie => !movie.watched);
-
-  const width = canvas.width;
-  const height = canvas.height;
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radius = width * 0.45;
-
-  ctx.clearRect(0, 0, width, height);
-
-  if (!items.length) {
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#2a2535";
-    ctx.fill();
-
-    ctx.fillStyle = "#aaa3b9";
-    ctx.font = "700 40px Inter, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Ajoutez un film", centerX, centerY);
-
-    return;
-  }
-
-  const arc = (Math.PI * 2) / items.length;
-
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.rotate(rotation);
-
-  items.forEach((movie, index) => {
-    const start = index * arc - Math.PI / 2;
-    const end = start + arc;
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, radius, start, end);
-    ctx.closePath();
-
-    ctx.fillStyle = palette[index % palette.length];
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(255,255,255,.18)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.save();
-    ctx.rotate(start + arc / 2);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#fff";
-
-    const fontSize =
-      items.length > 20 ? 18 : items.length > 12 ? 24 : 31;
-
-    ctx.font = `800 ${fontSize}px Inter, sans-serif`;
-
-    const maxCharacters =
-      items.length > 20 ? 15 : items.length > 12 ? 19 : 25;
-
-    const label =
-      movie.title.length > maxCharacters
-        ? `${movie.title.slice(0, maxCharacters - 1)}…`
-        : movie.title;
-
-    ctx.fillText(label, radius - 32, 9);
-    ctx.restore();
-  });
-
-  ctx.restore();
-
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius * 0.16, 0, Math.PI * 2);
-  ctx.fillStyle = "#181520";
-  ctx.fill();
-
-  ctx.strokeStyle = "rgba(255,255,255,.25)";
-  ctx.lineWidth = 6;
-  ctx.stroke();
-
-  ctx.fillStyle = "#fff";
-  ctx.font = "900 34px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("GO", centerX, centerY + 12);
-}
-
-function spin() {
-  const items = movies.filter(movie => !movie.watched);
-
-  if (!items.length || spinning) return;
-
-  spinning = true;
-  spinBtn.disabled = true;
-
-  const winnerIndex = Math.floor(Math.random() * items.length);
-  const arc = (Math.PI * 2) / items.length;
-  const target = -(winnerIndex * arc + arc / 2);
-  const extraTurns =
-    (6 + Math.floor(Math.random() * 3)) * Math.PI * 2;
-
-  const startRotation = rotation;
-  const targetRotation = target + extraTurns;
-  const duration = 4200;
-  const startTime = performance.now();
-
-  function animate(now) {
-    const time = Math.min((now - startTime) / duration, 1);
-    const eased = 1 - Math.pow(1 - time, 4);
-
-    rotation =
-      startRotation +
-      (targetRotation - startRotation) * eased;
-
-    drawWheel();
-
-    if (time < 1) {
-      requestAnimationFrame(animate);
-      return;
-    }
-
-    rotation =
-      ((rotation % (Math.PI * 2)) + Math.PI * 2) %
-      (Math.PI * 2);
-
-    spinning = false;
-    selectedMovieId = items[winnerIndex].id;
-    resultMovie.textContent = items[winnerIndex].title;
-    modal.classList.add("show");
-
-    updateUI();
-  }
-
-  requestAnimationFrame(animate);
-}
-
-function showToast(message) {
-  toast.textContent = message;
-  toast.classList.add("show");
-
-  clearTimeout(showToast.timer);
-
-  showToast.timer = setTimeout(() => {
-    toast.classList.remove("show");
-  }, 1800);
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("fr");
 }
 
 function escapeHtml(value) {
-  return value.replace(
+  return String(value).replace(
     /[&<>"']/g,
     character =>
       ({
@@ -434,109 +205,1302 @@ function escapeHtml(value) {
   );
 }
 
-document
-  .getElementById("addForm")
-  .addEventListener("submit", async event => {
-    event.preventDefault();
+function normalizeAngle(angle) {
+  const fullTurn = Math.PI * 2;
 
-    const input = document.getElementById("movieInput");
-    const title = input.value.trim();
+  return (
+    ((angle % fullTurn) + fullTurn) %
+    fullTurn
+  );
+}
 
-    if (!title) return;
+function findMovieById(id) {
+  return movies.find(
+    movie => String(movie.id) === String(id)
+  );
+}
 
-    const alreadyExists = movies.some(
-      movie =>
-        movie.title.toLowerCase() === title.toLowerCase()
+function isBlueTheme() {
+  return document.body.classList.contains("theme-blue");
+}
+
+function isMissingMediaTypeError(error) {
+  const message = [
+    error?.code,
+    error?.message,
+    error?.details,
+    error?.hint
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    message.includes("media_type") &&
+    (
+      message.includes("column") ||
+      message.includes("schema cache") ||
+      error?.code === "PGRST204" ||
+      error?.code === "42703"
+    )
+  );
+}
+
+function showSupabaseError(action, error) {
+  console.error(`Erreur Supabase pendant ${action} :`, {
+    code: error?.code,
+    message: error?.message,
+    details: error?.details,
+    hint: error?.hint
+  });
+
+  const message = String(error?.message || "").toLowerCase();
+
+  if (
+    error?.code === "42501" ||
+    message.includes("row-level security") ||
+    message.includes("permission denied")
+  ) {
+    showToast(
+      "Cette liste doit encore être autorisée dans Supabase"
     );
 
-    if (alreadyExists) {
-      showToast("Ce film est déjà dans la liste");
+    return;
+  }
+
+  if (isMissingMediaTypeError(error)) {
+    showToast(
+      "La colonne media_type doit encore être ajoutée dans Supabase"
+    );
+
+    return;
+  }
+
+  showToast(`Impossible de ${action}`);
+}
+
+
+/* =========================================================
+   GESTION DES ESPACES
+========================================================= */
+
+function getCurrentSpace() {
+  if (activeRoomId === spaces.personal.roomId) {
+    return spaces.personal;
+  }
+
+  return spaces.common;
+}
+
+function applySpaceAppearance() {
+  const currentSpace = getCurrentSpace();
+
+  activeSpaceName = currentSpace.name;
+
+  document.body.classList.toggle(
+    "theme-blue",
+    currentSpace.blueTheme
+  );
+
+  currentSpaceBadge.textContent =
+    currentSpace.name;
+
+  currentSpaceDescription.textContent =
+    currentSpace.description;
+
+  movieInput.placeholder =
+    currentSpace.placeholder;
+
+  spaceButtons.forEach(button => {
+    const isActive =
+      button.dataset.roomId === activeRoomId;
+
+    button.classList.toggle("active", isActive);
+
+    button.setAttribute(
+      "aria-pressed",
+      String(isActive)
+    );
+  });
+
+  try {
+    localStorage.setItem(
+      "cine-roulette-active-room",
+      activeRoomId
+    );
+  } catch (error) {
+    console.warn(
+      "Impossible d’enregistrer l’espace actif.",
+      error
+    );
+  }
+
+  drawWheel();
+}
+
+function resetFilters() {
+  activeTab = "todo";
+  activeType = "all";
+
+  searchInput.value = "";
+
+  updateFilterControls();
+}
+
+async function switchSpace(button) {
+  if (spinning) {
+    showToast("Attends la fin de la roulette");
+    return;
+  }
+
+  const nextRoomId = button.dataset.roomId;
+
+  if (!nextRoomId || nextRoomId === activeRoomId) {
+    return;
+  }
+
+  activeRoomId = nextRoomId;
+
+  selectedMovieId = null;
+  selectedMovieRoomId = null;
+
+  closeResultModal();
+  resetFilters();
+  applySpaceAppearance();
+
+  movies = [];
+  loading = true;
+  loadError = null;
+
+  updateUI();
+
+  await subscribeToActiveRoom();
+  await loadMovies();
+}
+
+
+/* =========================================================
+   CHARGEMENT DES FILMS
+========================================================= */
+
+async function loadMovies() {
+  const requestedRoomId = activeRoomId;
+
+  loading = true;
+  loadError = null;
+
+  updateUI();
+
+  const { data, error } = await supabaseClient
+    .from("movies")
+    .select("*")
+    .eq("room_id", requestedRoomId)
+    .order("created_at", {
+      ascending: true
+    });
+
+  /*
+    L’utilisateur a peut-être changé d’espace
+    pendant le chargement.
+  */
+
+  if (requestedRoomId !== activeRoomId) {
+    return;
+  }
+
+  loading = false;
+
+  if (error) {
+    loadError = error;
+    movies = [];
+
+    showSupabaseError(
+      "charger les contenus",
+      error
+    );
+
+    updateUI();
+    return;
+  }
+
+  movies = (data || []).map(movie => ({
+    ...movie,
+    media_type: normalizeMediaType(
+      movie.media_type
+    )
+  }));
+
+  updateUI();
+}
+
+
+/* =========================================================
+   AJOUTER UN FILM OU UNE SÉRIE
+========================================================= */
+
+async function addMovie(title, mediaType) {
+  const normalizedTitle = normalizeText(title);
+
+  const alreadyExists = movies.some(
+    movie =>
+      normalizeText(movie.title) === normalizedTitle
+  );
+
+  if (alreadyExists) {
+    showToast(
+      "Ce contenu est déjà présent dans la liste"
+    );
+
+    return false;
+  }
+
+  const completeRow = {
+    room_id: activeRoomId,
+    title,
+    watched: false,
+    media_type: mediaType
+  };
+
+  let { error } = await supabaseClient
+    .from("movies")
+    .insert(completeRow);
+
+  /*
+    Tant que la colonne media_type n’est pas créée,
+    les films peuvent encore être ajoutés sans cette colonne.
+    Les séries nécessiteront l’étape Supabase suivante.
+  */
+
+  if (
+    error &&
+    isMissingMediaTypeError(error) &&
+    mediaType === "film"
+  ) {
+    const fallbackResult = await supabaseClient
+      .from("movies")
+      .insert({
+        room_id: activeRoomId,
+        title,
+        watched: false
+      });
+
+    error = fallbackResult.error;
+  }
+
+  if (error) {
+    showSupabaseError(
+      "ajouter le contenu",
+      error
+    );
+
+    return false;
+  }
+
+  await loadMovies();
+
+  showToast(
+    mediaType === "serie"
+      ? "Série ajoutée à la liste"
+      : "Film ajouté à la liste"
+  );
+
+  return true;
+}
+
+
+/* =========================================================
+   MODIFIER L’ÉTAT D’UN CONTENU
+========================================================= */
+
+async function toggleWatched(id) {
+  const movie = findMovieById(id);
+
+  if (!movie) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("movies")
+    .update({
+      watched: !movie.watched
+    })
+    .eq("id", movie.id)
+    .eq("room_id", activeRoomId);
+
+  if (error) {
+    showSupabaseError(
+      "modifier le contenu",
+      error
+    );
+
+    return;
+  }
+
+  await loadMovies();
+
+  showToast(
+    movie.watched
+      ? "Remis dans les contenus à regarder"
+      : "Ajouté aux contenus déjà regardés"
+  );
+}
+
+
+/* =========================================================
+   SUPPRIMER UN CONTENU
+========================================================= */
+
+async function removeMovie(id) {
+  const movie = findMovieById(id);
+
+  if (!movie) {
+    return;
+  }
+
+  const confirmation = confirm(
+    `Supprimer « ${movie.title} » ?`
+  );
+
+  if (!confirmation) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("movies")
+    .delete()
+    .eq("id", movie.id)
+    .eq("room_id", activeRoomId);
+
+  if (error) {
+    showSupabaseError(
+      "supprimer le contenu",
+      error
+    );
+
+    return;
+  }
+
+  await loadMovies();
+  showToast("Contenu supprimé");
+}
+
+
+/* =========================================================
+   MISE À JOUR DE L’INTERFACE
+========================================================= */
+
+function updateUI() {
+  const todoMovies = movies.filter(
+    movie => !movie.watched
+  );
+
+  const watchedMovies = movies.filter(
+    movie => movie.watched
+  );
+
+  todoCount.textContent = todoMovies.length;
+  watchedCount.textContent = watchedMovies.length;
+
+  spinBtn.disabled =
+    loading ||
+    spinning ||
+    todoMovies.length === 0;
+
+  renderList();
+  drawWheel();
+}
+
+function updateFilterControls() {
+  statusTabs.forEach(tab => {
+    const isActive =
+      tab.dataset.tab === activeTab;
+
+    tab.classList.toggle("active", isActive);
+
+    tab.setAttribute(
+      "aria-selected",
+      String(isActive)
+    );
+  });
+
+  typeFilters.forEach(button => {
+    const isActive =
+      button.dataset.type === activeType;
+
+    button.classList.toggle("active", isActive);
+
+    button.setAttribute(
+      "aria-pressed",
+      String(isActive)
+    );
+  });
+}
+
+
+/* =========================================================
+   AFFICHAGE DE LA LISTE
+========================================================= */
+
+function renderList() {
+  if (loading) {
+    movieList.innerHTML = `
+      <div class="empty-state">
+        <span
+          class="empty-state-icon"
+          aria-hidden="true"
+        >
+          ◌
+        </span>
+
+        <p>Chargement de la liste…</p>
+      </div>
+    `;
+
+    return;
+  }
+
+  if (loadError) {
+    movieList.innerHTML = `
+      <div class="empty-state">
+        <span
+          class="empty-state-icon"
+          aria-hidden="true"
+        >
+          !
+        </span>
+
+        <p>
+          Impossible de charger la liste.
+        </p>
+      </div>
+    `;
+
+    return;
+  }
+
+  const query = normalizeText(searchInput.value);
+
+  const filteredMovies = movies
+    .filter(movie => {
+      if (activeTab === "todo") {
+        return !movie.watched;
+      }
+
+      return movie.watched;
+    })
+    .filter(movie => {
+      if (activeType === "all") {
+        return true;
+      }
+
+      return (
+        normalizeMediaType(movie.media_type) ===
+        activeType
+      );
+    })
+    .filter(movie => {
+      if (!query) {
+        return true;
+      }
+
+      return normalizeText(movie.title).includes(
+        query
+      );
+    });
+
+  if (filteredMovies.length === 0) {
+    let message;
+
+    if (query) {
+      message = "Aucun résultat pour cette recherche.";
+    } else if (activeType !== "all") {
+      message =
+        activeType === "serie"
+          ? "Aucune série dans cette catégorie."
+          : "Aucun film dans cette catégorie.";
+    } else if (activeTab === "watched") {
+      message =
+        "Aucun contenu regardé pour le moment.";
+    } else {
+      message =
+        "La liste est vide. Ajoutez un film ou une série.";
+    }
+
+    movieList.innerHTML = `
+      <div class="empty-state">
+        <span
+          class="empty-state-icon"
+          aria-hidden="true"
+        >
+          ◌
+        </span>
+
+        <p>${message}</p>
+      </div>
+    `;
+
+    return;
+  }
+
+  movieList.innerHTML = filteredMovies
+    .map((movie, index) => {
+      const title = escapeHtml(movie.title);
+
+      const typeLabel = getMediaTypeLabel(
+        movie.media_type
+      );
+
+      const actionLabel = movie.watched
+        ? "Remettre à regarder"
+        : "Marquer comme regardé";
+
+      return `
+        <article class="movie">
+          <div class="movie-number">
+            ${index + 1}
+          </div>
+
+          <div class="movie-copy">
+            <div
+              class="movie-title"
+              title="${title}"
+            >
+              ${title}
+            </div>
+
+            <div class="movie-meta">
+              ${typeLabel}
+            </div>
+          </div>
+
+          <div class="movie-actions">
+            <button
+              class="icon-btn"
+              type="button"
+              data-action="toggle"
+              data-id="${escapeHtml(movie.id)}"
+              title="${actionLabel}"
+              aria-label="${actionLabel} : ${title}"
+            >
+              ${movie.watched ? "↩" : "✓"}
+            </button>
+
+            <button
+              class="icon-btn"
+              type="button"
+              data-action="delete"
+              data-id="${escapeHtml(movie.id)}"
+              title="Supprimer"
+              aria-label="Supprimer : ${title}"
+            >
+              ×
+            </button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+
+/* =========================================================
+   DESSIN DE LA ROULETTE
+========================================================= */
+
+function getWheelItems() {
+  return movies.filter(
+    movie => !movie.watched
+  );
+}
+
+function getWheelPalette() {
+  return isBlueTheme()
+    ? bluePalette
+    : commonPalette;
+}
+
+function drawEmptyWheel(message) {
+  const width = canvas.width;
+  const height = canvas.height;
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = width * 0.45;
+
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.beginPath();
+  ctx.arc(
+    centerX,
+    centerY,
+    radius,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fillStyle = isBlueTheme()
+    ? "#10223d"
+    : "#28161d";
+
+  ctx.fill();
+
+  ctx.strokeStyle = isBlueTheme()
+    ? "rgba(117, 194, 255, 0.25)"
+    : "rgba(241, 205, 156, 0.22)";
+
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  ctx.fillStyle = isBlueTheme()
+    ? "#9bb5cf"
+    : "#bca6aa";
+
+  ctx.font = "700 36px DM Sans, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillText(
+    message,
+    centerX,
+    centerY
+  );
+}
+
+function drawWheel() {
+  const items = getWheelItems();
+
+  if (loading) {
+    drawEmptyWheel("Chargement…");
+    return;
+  }
+
+  if (!items.length) {
+    drawEmptyWheel("Ajoutez un contenu");
+    return;
+  }
+
+  const palette = getWheelPalette();
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  const radius = width * 0.45;
+  const arc = (Math.PI * 2) / items.length;
+
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.save();
+
+  ctx.translate(centerX, centerY);
+  ctx.rotate(rotation);
+
+  items.forEach((movie, index) => {
+    const startAngle =
+      index * arc - Math.PI / 2;
+
+    const endAngle =
+      startAngle + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+
+    ctx.arc(
+      0,
+      0,
+      radius,
+      startAngle,
+      endAngle
+    );
+
+    ctx.closePath();
+
+    ctx.fillStyle =
+      palette[index % palette.length];
+
+    ctx.fill();
+
+    ctx.strokeStyle =
+      "rgba(255, 255, 255, 0.18)";
+
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.save();
+
+    ctx.rotate(
+      startAngle + arc / 2
+    );
+
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "#ffffff";
+
+    const fontSize =
+      items.length > 28
+        ? 15
+        : items.length > 20
+          ? 18
+          : items.length > 12
+            ? 23
+            : 29;
+
+    ctx.font =
+      `800 ${fontSize}px DM Sans, sans-serif`;
+
+    const maxCharacters =
+      items.length > 28
+        ? 11
+        : items.length > 20
+          ? 14
+          : items.length > 12
+            ? 18
+            : 24;
+
+    const title = String(movie.title);
+
+    const label =
+      title.length > maxCharacters
+        ? `${title.slice(
+            0,
+            maxCharacters - 1
+          )}…`
+        : title;
+
+    ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+    ctx.shadowBlur = 5;
+
+    ctx.fillText(
+      label,
+      radius - 30,
+      0
+    );
+
+    ctx.restore();
+  });
+
+  ctx.restore();
+
+  /*
+    Bordure extérieure.
+  */
+
+  ctx.beginPath();
+
+  ctx.arc(
+    centerX,
+    centerY,
+    radius,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.strokeStyle = isBlueTheme()
+    ? "rgba(161, 220, 255, 0.35)"
+    : "rgba(243, 211, 157, 0.35)";
+
+  ctx.lineWidth = 7;
+  ctx.stroke();
+
+  /*
+    Centre de la roue.
+  */
+
+  ctx.beginPath();
+
+  ctx.arc(
+    centerX,
+    centerY,
+    radius * 0.16,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fillStyle = isBlueTheme()
+    ? "#081528"
+    : "#1a0e13";
+
+  ctx.fill();
+
+  ctx.strokeStyle = isBlueTheme()
+    ? "rgba(126, 203, 255, 0.42)"
+    : "rgba(241, 205, 156, 0.4)";
+
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 34px DM Sans, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillText(
+    "GO",
+    centerX,
+    centerY + 2
+  );
+}
+
+
+/* =========================================================
+   LANCEMENT DE LA ROULETTE
+========================================================= */
+
+function spin() {
+  const items = getWheelItems();
+
+  if (
+    !items.length ||
+    spinning ||
+    loading
+  ) {
+    return;
+  }
+
+  spinning = true;
+  spinBtn.disabled = true;
+
+  const winnerIndex = Math.floor(
+    Math.random() * items.length
+  );
+
+  const fullTurn = Math.PI * 2;
+  const arc = fullTurn / items.length;
+
+  const desiredRotation = normalizeAngle(
+    -(winnerIndex * arc + arc / 2)
+  );
+
+  const currentRotation =
+    normalizeAngle(rotation);
+
+  const adjustment =
+    (
+      desiredRotation -
+      currentRotation +
+      fullTurn
+    ) % fullTurn;
+
+  const extraTurns =
+    (
+      6 +
+      Math.floor(Math.random() * 3)
+    ) * fullTurn;
+
+  const startRotation = rotation;
+
+  const targetRotation =
+    startRotation +
+    extraTurns +
+    adjustment;
+
+  const duration = 4200;
+  const startTime = performance.now();
+
+  function animate(currentTime) {
+    const progress = Math.min(
+      (currentTime - startTime) / duration,
+      1
+    );
+
+    const easedProgress =
+      1 - Math.pow(1 - progress, 4);
+
+    rotation =
+      startRotation +
+      (
+        targetRotation -
+        startRotation
+      ) * easedProgress;
+
+    drawWheel();
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
       return;
     }
 
-    input.value = "";
-    activeTab = "todo";
+    rotation = normalizeAngle(
+      targetRotation
+    );
 
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.classList.toggle(
-        "active",
-        tab.dataset.tab === "todo"
+    spinning = false;
+
+    const winner = items[winnerIndex];
+
+    selectedMovieId = winner.id;
+    selectedMovieRoomId = activeRoomId;
+
+    openResultModal(winner);
+    updateUI();
+  }
+
+  requestAnimationFrame(animate);
+}
+
+
+/* =========================================================
+   FENÊTRE DU RÉSULTAT
+========================================================= */
+
+function openResultModal(movie) {
+  resultMovie.textContent = movie.title;
+
+  resultType.textContent =
+    getMediaTypeLabel(movie.media_type);
+
+  modal.classList.add("show");
+
+  modal.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
+  setTimeout(() => {
+    markWatchedButton.focus();
+  }, 100);
+}
+
+function closeResultModal() {
+  modal.classList.remove("show");
+
+  modal.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  selectedMovieId = null;
+  selectedMovieRoomId = null;
+}
+
+async function markSelectedMovieAsWatched() {
+  if (
+    selectedMovieId === null ||
+    selectedMovieRoomId === null
+  ) {
+    return;
+  }
+
+  markWatchedButton.disabled = true;
+
+  const { error } = await supabaseClient
+    .from("movies")
+    .update({
+      watched: true
+    })
+    .eq("id", selectedMovieId)
+    .eq("room_id", selectedMovieRoomId);
+
+  markWatchedButton.disabled = false;
+
+  if (error) {
+    showSupabaseError(
+      "déplacer le contenu",
+      error
+    );
+
+    return;
+  }
+
+  closeResultModal();
+  await loadMovies();
+
+  showToast(
+    "Contenu déplacé dans les contenus regardés"
+  );
+}
+
+
+/* =========================================================
+   MESSAGES TEMPORAIRES
+========================================================= */
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(showToast.timer);
+
+  showToast.timer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2200);
+}
+
+
+/* =========================================================
+   SUPABASE REALTIME
+========================================================= */
+
+function scheduleRealtimeReload() {
+  clearTimeout(realtimeReloadTimer);
+
+  realtimeReloadTimer = setTimeout(() => {
+    loadMovies();
+  }, 150);
+}
+
+async function subscribeToActiveRoom() {
+  if (realtimeChannel) {
+    await supabaseClient.removeChannel(
+      realtimeChannel
+    );
+
+    realtimeChannel = null;
+  }
+
+  const subscribedRoomId = activeRoomId;
+
+  realtimeChannel = supabaseClient
+    .channel(
+      `movies-${subscribedRoomId}-${Date.now()}`
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "movies",
+        filter:
+          `room_id=eq.${subscribedRoomId}`
+      },
+      () => {
+        /*
+          Ignore les événements d’un ancien espace.
+        */
+
+        if (
+          subscribedRoomId !== activeRoomId
+        ) {
+          return;
+        }
+
+        scheduleRealtimeReload();
+      }
+    )
+    .subscribe(status => {
+      console.log(
+        `Realtime ${subscribedRoomId} :`,
+        status
       );
     });
+}
 
-    await addMovie(title);
-  });
 
-document.querySelectorAll(".tab").forEach(tab => {
+/* =========================================================
+   ÉVÉNEMENTS DE NAVIGATION
+========================================================= */
+
+spaceButtons.forEach(button => {
+  button.addEventListener(
+    "click",
+    async () => {
+      await switchSpace(button);
+    }
+  );
+});
+
+
+/* =========================================================
+   ÉVÉNEMENTS DES FILTRES
+========================================================= */
+
+statusTabs.forEach(tab => {
   tab.addEventListener("click", () => {
     activeTab = tab.dataset.tab;
 
-    document.querySelectorAll(".tab").forEach(otherTab => {
-      otherTab.classList.toggle(
-        "active",
-        otherTab === tab
-      );
-    });
-
+    updateFilterControls();
     renderList();
   });
 });
 
-searchInput.addEventListener("input", renderList);
-spinBtn.addEventListener("click", spin);
+typeFilters.forEach(button => {
+  button.addEventListener("click", () => {
+    activeType = button.dataset.type;
 
-document
-  .getElementById("closeModal")
-  .addEventListener("click", () => {
-    modal.classList.remove("show");
+    updateFilterControls();
+    renderList();
   });
+});
 
-document
-  .getElementById("markWatched")
-  .addEventListener("click", async () => {
-    if (selectedMovieId === null) return;
+searchInput.addEventListener(
+  "input",
+  renderList
+);
 
-    const { error } = await supabaseClient
-      .from("movies")
-      .update({
-        watched: true
-      })
-      .eq("id", selectedMovieId)
-      .eq("room_id", roomId);
 
-    if (error) {
-      console.error("Erreur de modification :", error);
-      showToast("Impossible de déplacer le film");
+/* =========================================================
+   ÉVÉNEMENT DU FORMULAIRE
+========================================================= */
+
+addForm.addEventListener(
+  "submit",
+  async event => {
+    event.preventDefault();
+
+    const title = movieInput.value.trim();
+
+    const mediaType =
+      normalizeMediaType(
+        mediaTypeInput.value
+      );
+
+    if (!title) {
       return;
     }
 
-    selectedMovieId = null;
-    modal.classList.remove("show");
-    showToast("Film déplacé dans les films regardés");
-  });
+    const submitButton =
+      addForm.querySelector(
+        'button[type="submit"]'
+      );
 
-modal.addEventListener("click", event => {
-  if (event.target === modal) {
-    modal.classList.remove("show");
-  }
-});
+    submitButton.disabled = true;
 
-const realtimeChannel = supabaseClient
-  .channel(`movies-${roomId}`)
-  .on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "movies",
-      filter: `room_id=eq.${roomId}`
-    },
-    () => {
-      loadMovies();
+    const success = await addMovie(
+      title,
+      mediaType
+    );
+
+    submitButton.disabled = false;
+
+    if (!success) {
+      return;
     }
-  )
-  .subscribe(status => {
-    console.log("État Supabase Realtime :", status);
-  });
 
-loadMovies();
+    movieInput.value = "";
+
+    activeTab = "todo";
+    activeType = "all";
+
+    updateFilterControls();
+    movieInput.focus();
+  }
+);
+
+
+/* =========================================================
+   ACTIONS DANS LA LISTE
+========================================================= */
+
+movieList.addEventListener(
+  "click",
+  async event => {
+    const button = event.target.closest(
+      "button[data-action]"
+    );
+
+    if (!button) {
+      return;
+    }
+
+    const id = button.dataset.id;
+    const action = button.dataset.action;
+
+    button.disabled = true;
+
+    if (action === "toggle") {
+      await toggleWatched(id);
+    }
+
+    if (action === "delete") {
+      await removeMovie(id);
+    }
+
+    button.disabled = false;
+  }
+);
+
+
+/* =========================================================
+   ÉVÉNEMENTS DE LA ROULETTE ET DE LA MODALE
+========================================================= */
+
+spinBtn.addEventListener(
+  "click",
+  spin
+);
+
+closeModalButton.addEventListener(
+  "click",
+  closeResultModal
+);
+
+modalCloseButton.addEventListener(
+  "click",
+  closeResultModal
+);
+
+markWatchedButton.addEventListener(
+  "click",
+  markSelectedMovieAsWatched
+);
+
+modal.addEventListener(
+  "click",
+  event => {
+    if (event.target === modal) {
+      closeResultModal();
+    }
+  }
+);
+
+document.addEventListener(
+  "keydown",
+  event => {
+    if (
+      event.key === "Escape" &&
+      modal.classList.contains("show")
+    ) {
+      closeResultModal();
+    }
+  }
+);
+
+
+/* =========================================================
+   INITIALISATION
+========================================================= */
+
+async function initializeApp() {
+  let savedRoomId = null;
+
+  try {
+    savedRoomId = localStorage.getItem(
+      "cine-roulette-active-room"
+    );
+  } catch (error) {
+    console.warn(
+      "Impossible de récupérer l’espace précédent.",
+      error
+    );
+  }
+
+  const savedButton = spaceButtons.find(
+    button =>
+      button.dataset.roomId === savedRoomId
+  );
+
+  const initiallyActiveButton =
+    savedButton ||
+    spaceButtons.find(
+      button =>
+        button.classList.contains("active")
+    ) ||
+    spaceButtons[0];
+
+  if (initiallyActiveButton) {
+    activeRoomId =
+      initiallyActiveButton.dataset.roomId;
+  }
+
+  applySpaceAppearance();
+  updateFilterControls();
+  updateUI();
+
+  await subscribeToActiveRoom();
+  await loadMovies();
+}
+
+initializeApp();
