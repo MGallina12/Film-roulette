@@ -1,5 +1,5 @@
 window.CINE_CONFIG = {
-  supabaseUrl: "https://mgaenwodcuegfthnepzh.supabase.co",
+  supabaseUrl: "https://mgaenwodcueqfthnepzh.supabase.co",
   supabaseAnonKey: "sb_publishable_iu2bu_XrGxBKM3UaeLddxw_bUCOKOfc",
   roomId: "matheo-et-sa-copine"
 };
